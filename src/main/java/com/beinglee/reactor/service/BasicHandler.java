@@ -34,10 +34,7 @@ public class BasicHandler implements Runnable {
 
         this.socket = sc;
         socket.configureBlocking(false);
-        sk = socket.register(selector, READING);
-        sk.interestOps(SelectionKey.OP_READ);
-        sk.attach(this);
-
+        sk = socket.register(selector, SelectionKey.OP_READ,this);
         selector.wakeup();
     }
 
