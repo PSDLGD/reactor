@@ -29,6 +29,7 @@ public class Reactor implements Runnable {
         serverSocket.configureBlocking(false);
         serverSocket.register(selector, SelectionKey.OP_ACCEPT, new Accepter());
         log.info("Listening on port:{}", port);
+
     }
 
 
