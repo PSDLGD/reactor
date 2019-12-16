@@ -49,9 +49,15 @@ public class Reactor implements Runnable {
         }
     }
 
+    /**
+     * 1 若是连接事件 获取的是Accepter
+     * 2 若是IO读写事件 获取的是Handler
+     */
     private void dispatch(SelectionKey key) {
         Runnable r = (Runnable) key.attachment();
-        r.run();
+        if (r != null) {
+            r.run();
+        }
     }
 
     /**
@@ -66,7 +72,8 @@ public class Reactor implements Runnable {
                 if (sc != null) {
                     sc.write(ByteBuffer.wrap("Implementation of Ractor Design Pattern by BeingLee\r\nreactor>".getBytes()));
                     log.info("Accept and handler -{}", sc.socket().getLocalSocketAddress());
-                    new BasicHandler(selector, sc);
+//                    new BasicHandler(selector, sc);
+                    new MultiThreadHandler(selector, sc);
                 }
             } catch (IOException e) {
                 e.printStackTrace();

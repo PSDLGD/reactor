@@ -16,25 +16,25 @@ public class BasicHandler implements Runnable {
     private static final int MAX_IN = 1024;
     private static final int MAX_OUT = 1024;
 
-    private ByteBuffer input = ByteBuffer.allocate(MAX_IN);
-    private ByteBuffer output = ByteBuffer.allocate(MAX_OUT);
+    protected ByteBuffer input = ByteBuffer.allocate(MAX_IN);
+    protected ByteBuffer output = ByteBuffer.allocate(MAX_OUT);
 
+    protected SocketChannel socket;
 
-    private SocketChannel socket;
+    protected SelectionKey sk;
 
-    private SelectionKey sk;
+    protected static final int READING = 0, WRITING = 1, CLOSED = 2;
 
-    private static final int READING = 0, SENDING = 1, CLOSED = 2;
+    public static int EXIT = 3;
 
-    private int state = READING;
+    protected int state = READING;
 
-    private StringBuilder request = new StringBuilder();
+    protected StringBuilder request = new StringBuilder();
 
     public BasicHandler(Selector selector, SocketChannel sc) throws IOException {
-
         this.socket = sc;
         socket.configureBlocking(false);
-        sk = socket.register(selector, SelectionKey.OP_READ,this);
+        sk = socket.register(selector, SelectionKey.OP_READ, this);
         selector.wakeup();
     }
 
@@ -44,21 +44,15 @@ public class BasicHandler implements Runnable {
         try {
             if (state == READING) {
                 doRead();
-            } else if (state == SENDING) {
-                doSend();
+            } else if (state == WRITING) {
+                doWrite();
             }
         } catch (IOException e) {
-            try {
-                sk.channel().close();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            close();
         }
-
-
     }
 
-    private void doRead() throws IOException {
+    protected void doRead() throws IOException {
         input.clear();
         int read = socket.read(input);
         if (inputIsComplete(read)) {
@@ -67,8 +61,23 @@ public class BasicHandler implements Runnable {
         }
     }
 
-    private void process() throws EOFException {
-        if (state == SENDING) {
+    private void doWrite() throws IOException {
+        int written = -1;
+        output.flip();
+        if (output.hasRemaining()) {
+            written = socket.write(output);
+        }
+        if (outputIsComplete(written)) {
+            close();
+        } else {
+            state = READING;
+            socket.write(ByteBuffer.wrap("\r\nreactor> ".getBytes()));
+            sk.interestOps(SelectionKey.OP_READ);
+        }
+    }
+
+    protected void process() throws EOFException {
+        if (state == WRITING) {
             String requestContent = request.toString();
             byte[] response = requestContent.getBytes(StandardCharsets.UTF_8);
             output.put(response);
@@ -77,26 +86,28 @@ public class BasicHandler implements Runnable {
         }
     }
 
-    private Boolean inputIsComplete(int bytes) {
+    /**
+     * 按ctrl+c客户端退出
+     */
+    protected Boolean inputIsComplete(int bytes) {
         if (bytes > 0) {
             input.flip();
             while (input.hasRemaining()) {
                 byte ch = input.get();
-                if (ch == 3) {
+                // ctrl + c
+                if (ch == EXIT) {
                     state = CLOSED;
                     return true;
-                } else if (ch == '\r') {
-
-                } else if (ch == '\n') {
-                    state = SENDING;
-                    return true;
-                } else {
+                } // Enter 输入完毕
+                else if (ch == '\r') {
+                    state = WRITING;
                     request.append((char) ch);
+                    return true;
                 }
+                request.append((char) ch);
             }
         }
         return false;
-
     }
 
     private boolean outputIsComplete(int written) {
@@ -108,19 +119,12 @@ public class BasicHandler implements Runnable {
         return false;
     }
 
-    private void doSend() throws IOException {
-        int written = -1;
-        output.flip();
-        if (output.hasRemaining()) {
-            written = socket.write(output);
-        }
-        if (outputIsComplete(written)) {
+    protected void close() {
+        try {
             sk.channel().close();
-        } else {
-            state = READING;
-            socket.write(ByteBuffer.wrap("\r\nreactor> ".getBytes()));
-            sk.interestOps(SelectionKey.OP_READ);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
     }
+
 }
