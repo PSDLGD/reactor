@@ -10,6 +10,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * 单线程基本处理器，I/O 的读写以及业务的处理均由 Reactor 线程完成
+ */
 @Slf4j
 public class BasicHandler implements Runnable {
 

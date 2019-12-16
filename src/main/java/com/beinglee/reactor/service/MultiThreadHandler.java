@@ -11,8 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * @author zhanglu
- * @date 2019/12/16 14:01
+ *
  */
 @Slf4j
 public class MultiThreadHandler extends BasicHandler {
