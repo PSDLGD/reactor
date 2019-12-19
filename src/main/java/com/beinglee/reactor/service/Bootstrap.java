@@ -9,7 +9,9 @@ public class Bootstrap {
 
     public static void main(String[] args) {
         try {
-            MultiWorkThreadAcceptor reactor = new MultiWorkThreadAcceptor(10393);
+            int port = 8088;
+            MultiWorkThreadReactor reactor = new MultiWorkThreadReactor(port);
+//            Reactor reactor = new Reactor(port);
             Thread t = new Thread(reactor);
             t.start();
             log.info("Server start.");

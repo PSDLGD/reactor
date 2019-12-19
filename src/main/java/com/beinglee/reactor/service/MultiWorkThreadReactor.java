@@ -1,5 +1,7 @@
 package com.beinglee.reactor.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
@@ -10,10 +12,10 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * @author zhanglu
- * @date 2019/12/16 18:23
+ * 主从多线程模型
  */
-public class MultiWorkThreadAcceptor implements Runnable {
+@Slf4j
+public class MultiWorkThreadReactor implements Runnable {
 
     private Selector selector;
     private ServerSocketChannel serverSocket;
@@ -22,7 +24,7 @@ public class MultiWorkThreadAcceptor implements Runnable {
     private volatile int nextHandler = 0;
 
 
-    public MultiWorkThreadAcceptor(int port) throws IOException {
+    public MultiWorkThreadReactor(int port) throws IOException {
         selector = Selector.open();
         serverSocket = ServerSocketChannel.open();
         serverSocket.socket().bind(new InetSocketAddress(port));
@@ -43,21 +45,26 @@ public class MultiWorkThreadAcceptor implements Runnable {
     }
 
 
+    private synchronized void dispatch(SocketChannel sc) throws IOException {
+        SubReactor work = workThreadHandlers[nextHandler];
+        work.registerChannel(sc);
+        nextHandler++;
+        if (nextHandler >= workThreadHandlers.length) {
+            nextHandler = 0;
+        }
+        Thread t = new Thread(work);
+        t.start();
+    }
+
+
     @Override
     public void run() {
         try {
-            while (true) {
+            while (!Thread.interrupted()) {
                 selector.select();
                 SocketChannel sc = serverSocket.accept();
                 if (sc != null) {
-                    synchronized (sc) {
-                        SubReactor work = workThreadHandlers[nextHandler];
-                        work.registerChannel(sc);
-                        nextHandler++;
-                        if (nextHandler >= workThreadHandlers.length) {
-                            nextHandler = 0;
-                        }
-                    }
+                    this.dispatch(sc);
                 }
             }
 
@@ -66,7 +73,7 @@ public class MultiWorkThreadAcceptor implements Runnable {
         }
     }
 
-    static class SubReactor implements Runnable {
+    class SubReactor implements Runnable {
 
         private final Selector selector;
 
@@ -75,7 +82,7 @@ public class MultiWorkThreadAcceptor implements Runnable {
         }
 
         public void registerChannel(SocketChannel sc) throws IOException {
-            sc.register(this.selector, SelectionKey.OP_READ | SelectionKey.OP_CONNECT);
+            new BasicHandler(selector, sc);
         }
 
         @Override
@@ -87,25 +94,14 @@ public class MultiWorkThreadAcceptor implements Runnable {
                     Iterator<SelectionKey> iterator = keys.iterator();
                     while (iterator.hasNext()) {
                         SelectionKey key = iterator.next();
+                        Runnable r = (Runnable) key.attachment();
+                        r.run();
                         iterator.remove();
-                        if (key.isReadable()) {
-                            doRead();
-                        } else if (key.isWritable()) {
-                            doWrite();
-                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-        }
-
-        private void doRead() {
-
-        }
-
-        private void doWrite() {
-
         }
     }
 }
