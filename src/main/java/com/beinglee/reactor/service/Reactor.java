@@ -1,5 +1,6 @@
 package com.beinglee.reactor.service;
 
+import com.beinglee.reactor.service.handler.BaseHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -12,7 +13,9 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 
 /**
- * 1 客户端发起请求并建立连接，注册Accept。
+ * 单一Reactor模式
+ * 单线程Reactor(BaseHandler):即整个过程只有一个Reactor线程负责全部的Dispatcher和Handler的工作.
+ * 多线程Reactor(MultiWorkThreadReactor):一个Reactor线程负责Dispatcher,Handler操作交给线程池处理.
  */
 @Slf4j
 public class Reactor implements Runnable {
@@ -60,7 +63,7 @@ public class Reactor implements Runnable {
     }
 
     /**
-     * 连接事件就绪,处理连接事件
+     * 连接事件就绪,处理连接事件。
      */
     class Accepter implements Runnable {
         @Override
@@ -71,8 +74,10 @@ public class Reactor implements Runnable {
                 if (sc != null) {
                     sc.write(ByteBuffer.wrap("Implementation of Ractor Design Pattern by BeingLee\r\nreactor>".getBytes()));
                     log.info("Accept and handler -{}", sc.socket().getLocalSocketAddress());
-//                    new BasicHandler(selector, sc);
-                    new MultiThreadHandler(selector, sc);
+                    // 单线程
+                    new BaseHandler(selector, sc);
+                    // 多线程
+//                    new MultiThreadHandler(selector, sc);
                 }
             } catch (IOException e) {
                 e.printStackTrace();

@@ -1,9 +1,12 @@
 package com.beinglee.reactor.service;
 
+import com.beinglee.reactor.service.handler.BaseHandler;
+import com.beinglee.reactor.service.handler.MultiThreadHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -13,13 +16,14 @@ import java.util.Set;
 
 /**
  * 主从多线程模型
+ * 主Reactor只负责接收连接，从Reactor负责
  */
 @Slf4j
 public class MultiWorkThreadReactor implements Runnable {
 
     private Selector selector;
     private ServerSocketChannel serverSocket;
-    private final int workCount = 3;
+    private final int workCount = 1;
     private SubReactor[] workThreadHandlers = new SubReactor[workCount];
     private volatile int nextHandler = 0;
 
@@ -64,6 +68,7 @@ public class MultiWorkThreadReactor implements Runnable {
                 selector.select();
                 SocketChannel sc = serverSocket.accept();
                 if (sc != null) {
+                    sc.write(ByteBuffer.wrap("Implementation of Ractor Design Pattern by BeingLee\r\nreactor>".getBytes()));
                     this.dispatch(sc);
                 }
             }
@@ -73,7 +78,7 @@ public class MultiWorkThreadReactor implements Runnable {
         }
     }
 
-    class SubReactor implements Runnable {
+    static class SubReactor implements Runnable {
 
         private final Selector selector;
 
@@ -82,7 +87,10 @@ public class MultiWorkThreadReactor implements Runnable {
         }
 
         public void registerChannel(SocketChannel sc) throws IOException {
-            new BasicHandler(selector, sc);
+            // 单线程
+//            new BaseHandler(selector, sc);
+            // 多线程
+            new MultiThreadHandler(selector, sc);
         }
 
         @Override
