@@ -21,9 +21,7 @@ public class BaseHandler extends AbstractHandler implements Runnable {
 
     @Override
     protected void process() throws IOException {
-        if (state == CLOSED) {
-            sk.channel().close();
-        } else if (state == WRITING) {
+        if (state == WRITING) {
             String reqContent = request.toString();
             String response = "Received: " + reqContent + "\nreactor> ";
             byte[] bytes = response.getBytes(StandardCharsets.UTF_8);

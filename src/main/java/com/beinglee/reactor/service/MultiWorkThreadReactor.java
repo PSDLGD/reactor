@@ -23,7 +23,7 @@ public class MultiWorkThreadReactor implements Runnable {
 
     private Selector selector;
     private ServerSocketChannel serverSocket;
-    private final int workCount = 1;
+    private final int workCount = 3;
     private SubReactor[] workThreadHandlers = new SubReactor[workCount];
     private volatile int nextHandler = 0;
 

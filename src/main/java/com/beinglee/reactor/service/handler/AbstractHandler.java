@@ -43,21 +43,21 @@ public abstract class AbstractHandler implements Handler {
                 doRead();
             } else if (state == WRITING) {
                 doWrite();
+            } else if (state == CLOSED) {
+                close();
             }
         } catch (IOException e) {
             log.error("Handler handle occur IOException", e);
         }
-
     }
 
     protected void doRead() throws IOException {
         input.clear();
         int read = socketChannel.read(input);
-        if (inputIsComplete(read)) {
+        if (inputIsComplete(read) && state != CLOSED) {
             process();
-            if (state != CLOSED) {
-                sk.interestOps(SelectionKey.OP_WRITE);
-            }
+            sk.interestOps(SelectionKey.OP_WRITE);
+
         }
     }
 
@@ -97,5 +97,8 @@ public abstract class AbstractHandler implements Handler {
         return false;
     }
 
+    protected void close() throws IOException {
+        socketChannel.close();
+    }
 
 }
